@@ -7,6 +7,7 @@
 
 namespace MWGui
 {
+    class ItemWidget;
 
     class ItemView final : public MyGUI::Widget
     {
@@ -57,6 +58,7 @@ namespace MWGui
         int mRows = 1;
         int mControllerFocus = 0;
         bool mControllerActiveWindow;
+        ItemWidget* getItemWidget(MyGUI::Widget* child);
         void updateControllerFocus(int prevFocus, int newFocus);
     };
 

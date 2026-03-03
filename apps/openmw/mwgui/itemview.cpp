@@ -6,12 +6,15 @@
 #include <MyGUI_Gui.h>
 #include <MyGUI_ImageBox.h>
 #include <MyGUI_ScrollView.h>
+#include <MyGUI_TextBox.h>
 
 #include <components/settings/values.hpp>
 
 #include "../mwbase/environment.hpp"
 #include "../mwbase/inputmanager.hpp"
 #include "../mwbase/windowmanager.hpp"
+
+#include "../mwworld/class.hpp"
 
 #include "itemmodel.hpp"
 #include "itemwidget.hpp"
@@ -23,6 +26,13 @@ namespace MWGui
     {
         return Settings::gui().mControllerMenus ? 64 : 42;
     }
+
+    static bool useListMode()
+    {
+        return Settings::gui().mControllerMenus;
+    }
+
+    static constexpr int ListModeCellWidth = 196;
 
     ItemView::ItemView()
         : mScrollView(nullptr)
@@ -57,33 +67,38 @@ namespace MWGui
         int y = 0;
         MyGUI::Widget* dragArea = mScrollView->getChildAt(0);
         int maxHeight = mScrollView->getHeight();
-
-        const int iconSize = getIconSize();
-        mRows = std::max(maxHeight / iconSize, 1);
         mItemCount = static_cast<int>(dragArea->getChildCount());
+
+        const int cellHeight = getIconSize();
+        const int cellWidth = useListMode() ? ListModeCellWidth : cellHeight;
+
+        mRows = std::max(maxHeight / cellHeight, 1);
         bool showScrollbar
-            = static_cast<int>(std::ceil(mItemCount / float(mRows))) > mScrollView->getWidth() / iconSize;
+            = static_cast<int>(std::ceil(mItemCount / float(mRows))) > mScrollView->getWidth() / cellWidth;
         if (showScrollbar)
         {
             maxHeight -= 18;
-            mRows = std::max(maxHeight / iconSize, 1);
+            mRows = std::max(maxHeight / cellHeight, 1);
         }
 
         for (int i = 0; i < mItemCount; ++i)
         {
             MyGUI::Widget* w = dragArea->getChildAt(i);
 
-            w->setPosition(x, y);
+            if (useListMode())
+                w->setCoord(x, y, cellWidth, cellHeight);
+            else
+                w->setPosition(x, y);
 
-            y += iconSize;
+            y += cellHeight;
 
-            if (y > maxHeight - iconSize && i < mItemCount - 1)
+            if (y > maxHeight - cellHeight && i < mItemCount - 1)
             {
-                x += iconSize;
+                x += cellWidth;
                 y = 0;
             }
         }
-        x += iconSize;
+        x += cellWidth;
 
         MyGUI::IntSize size = MyGUI::IntSize(std::max(mScrollView->getSize().width, x), mScrollView->getSize().height);
 
@@ -122,25 +137,68 @@ namespace MWGui
         dragArea->eventMouseButtonClick += MyGUI::newDelegate(this, &ItemView::onSelectedBackground);
         dragArea->eventMouseWheel += MyGUI::newDelegate(this, &ItemView::onMouseWheelMoved);
 
-        for (ItemModel::ModelIndex i = 0; i < static_cast<int>(mModel->getItemCount()); ++i)
+        if (useListMode())
         {
-            const ItemStack& item = mModel->getItem(i);
-
+            // List mode: each item is a cell with icon + name label
             const int iconSize = getIconSize();
-            ItemWidget* itemWidget = dragArea->createWidget<ItemWidget>(
-                "MW_ItemIcon", MyGUI::IntCoord(0, 0, iconSize, iconSize), MyGUI::Align::Default);
-            itemWidget->setUserString("ToolTipType", "ItemModelIndex");
-            itemWidget->setUserData(std::make_pair(i, mModel.get()));
-            ItemWidget::ItemState state = ItemWidget::None;
-            if (item.mType == ItemStack::Type_Barter)
-                state = ItemWidget::Barter;
-            if (item.mType == ItemStack::Type_Equipped)
-                state = ItemWidget::Equip;
-            itemWidget->setItem(item.mBase, state);
-            itemWidget->setCount(static_cast<int>(item.mCount));
+            const int cellWidth = ListModeCellWidth;
 
-            itemWidget->eventMouseButtonClick += MyGUI::newDelegate(this, &ItemView::onSelectedItem);
-            itemWidget->eventMouseWheel += MyGUI::newDelegate(this, &ItemView::onMouseWheelMoved);
+            for (ItemModel::ModelIndex i = 0; i < static_cast<int>(mModel->getItemCount()); ++i)
+            {
+                const ItemStack& item = mModel->getItem(i);
+
+                // Cell container
+                MyGUI::Widget* cell = dragArea->createWidget<MyGUI::Widget>(
+                    "", MyGUI::IntCoord(0, 0, cellWidth, iconSize), MyGUI::Align::Default);
+                cell->setUserString("ToolTipType", "ItemModelIndex");
+                cell->setUserData(std::make_pair(i, mModel.get()));
+                cell->setNeedMouseFocus(true);
+                cell->eventMouseButtonClick += MyGUI::newDelegate(this, &ItemView::onSelectedItem);
+                cell->eventMouseWheel += MyGUI::newDelegate(this, &ItemView::onMouseWheelMoved);
+
+                // Icon (first child — index 0)
+                ItemWidget* itemWidget = cell->createWidget<ItemWidget>(
+                    "MW_ItemIcon", MyGUI::IntCoord(0, 0, iconSize, iconSize), MyGUI::Align::Default);
+                itemWidget->setNeedMouseFocus(false);
+                ItemWidget::ItemState state = ItemWidget::None;
+                if (item.mType == ItemStack::Type_Barter)
+                    state = ItemWidget::Barter;
+                if (item.mType == ItemStack::Type_Equipped)
+                    state = ItemWidget::Equip;
+                itemWidget->setItem(item.mBase, state);
+                itemWidget->setCount(static_cast<int>(item.mCount));
+
+                // Name label
+                MyGUI::TextBox* nameLabel = cell->createWidget<MyGUI::TextBox>(
+                    "SandText", MyGUI::IntCoord(iconSize + 4, 0, cellWidth - iconSize - 8, iconSize),
+                    MyGUI::Align::Default);
+                nameLabel->setCaption(MyGUI::UString(item.mBase.getClass().getName(item.mBase)));
+                nameLabel->setTextAlign(MyGUI::Align::Left | MyGUI::Align::VCenter);
+                nameLabel->setNeedMouseFocus(false);
+            }
+        }
+        else
+        {
+            for (ItemModel::ModelIndex i = 0; i < static_cast<int>(mModel->getItemCount()); ++i)
+            {
+                const ItemStack& item = mModel->getItem(i);
+
+                const int iconSize = getIconSize();
+                ItemWidget* itemWidget = dragArea->createWidget<ItemWidget>(
+                    "MW_ItemIcon", MyGUI::IntCoord(0, 0, iconSize, iconSize), MyGUI::Align::Default);
+                itemWidget->setUserString("ToolTipType", "ItemModelIndex");
+                itemWidget->setUserData(std::make_pair(i, mModel.get()));
+                ItemWidget::ItemState state = ItemWidget::None;
+                if (item.mType == ItemStack::Type_Barter)
+                    state = ItemWidget::Barter;
+                if (item.mType == ItemStack::Type_Equipped)
+                    state = ItemWidget::Equip;
+                itemWidget->setItem(item.mBase, state);
+                itemWidget->setCount(static_cast<int>(item.mCount));
+
+                itemWidget->eventMouseButtonClick += MyGUI::newDelegate(this, &ItemView::onSelectedItem);
+                itemWidget->eventMouseWheel += MyGUI::newDelegate(this, &ItemView::onMouseWheelMoved);
+            }
         }
 
         layoutWidgets();
@@ -269,6 +327,19 @@ namespace MWGui
             updateControllerFocus(-1, mControllerFocus);
     }
 
+    ItemWidget* ItemView::getItemWidget(MyGUI::Widget* child)
+    {
+        if (useListMode())
+        {
+            // In list mode, child is a row container; the ItemWidget is the first child
+            if (child->getChildCount() > 0)
+                return static_cast<ItemWidget*>(child->getChildAt(0));
+            return nullptr;
+        }
+        // In grid mode, child IS the ItemWidget
+        return static_cast<ItemWidget*>(child);
+    }
+
     void ItemView::updateControllerFocus(int prevFocus, int newFocus)
     {
         MWBase::Environment::get().getWindowManager()->setCursorVisible(
@@ -281,24 +352,27 @@ namespace MWGui
 
         if (prevFocus >= 0 && prevFocus < mItemCount)
         {
-            ItemWidget* prev = static_cast<ItemWidget*>(dragArea->getChildAt(prevFocus));
+            ItemWidget* prev = getItemWidget(dragArea->getChildAt(prevFocus));
             if (prev)
                 prev->setControllerFocus(false);
         }
 
         if (mControllerActiveWindow && newFocus >= 0 && newFocus < mItemCount)
         {
-            ItemWidget* focused = static_cast<ItemWidget*>(dragArea->getChildAt(newFocus));
+            ItemWidget* focused = getItemWidget(dragArea->getChildAt(newFocus));
             if (focused)
             {
                 focused->setControllerFocus(true);
 
-                // Scroll the list to keep the active item in view
-                int column = newFocus / mRows;
-                if (column <= 3)
-                    mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
-                else
-                    mScrollView->setViewOffset(MyGUI::IntPoint(-getIconSize() * (column - 3), 0));
+                {
+                    // Horizontal scrolling — use cellWidth for list mode, iconSize for grid mode
+                    const int cellWidth = useListMode() ? ListModeCellWidth : getIconSize();
+                    int column = newFocus / mRows;
+                    if (column <= 3)
+                        mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
+                    else
+                        mScrollView->setViewOffset(MyGUI::IntPoint(-cellWidth * (column - 3), 0));
+                }
 
                 MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
                 winMgr->restoreControllerTooltips();
