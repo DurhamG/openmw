@@ -1439,6 +1439,14 @@ namespace MWGui
 
         if (Settings::gui().mControllerMenus)
         {
+            // Make dialogue window fill the screen above the controller buttons overlay.
+            if (mode == GM_Dialogue)
+            {
+                int overlayHeight = mControllerButtonsOverlay ? mControllerButtonsOverlay->getHeight() : 0;
+                MyGUI::IntSize viewSize = MyGUI::RenderManager::getInstance().getViewSize();
+                mDialogueWindow->mMainWidget->setCoord(0, 0, viewSize.width, viewSize.height - overlayHeight);
+            }
+
             if (mode == GM_Container)
             {
                 // Ensure controller focus is on container when entering container mode.
@@ -1946,11 +1954,11 @@ namespace MWGui
 
     void WindowManager::onWindowChangeCoord(MyGUI::Window* window)
     {
-        // If using controller menus, don't persist changes to size of the stats or magic
-        // windows.
+        // If using controller menus, don't persist changes to size of windows we resize programmatically.
         if (Settings::gui().mControllerMenus
             && (window == mStatsWindow->mMainWidget->castType<MyGUI::Window>()
-                || window == mSpellWindow->mMainWidget->castType<MyGUI::Window>()))
+                || window == mSpellWindow->mMainWidget->castType<MyGUI::Window>()
+                || window == mDialogueWindow->mMainWidget->castType<MyGUI::Window>()))
             return;
 
         const auto it = mTrackedWindows.find(window);
