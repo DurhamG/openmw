@@ -70,6 +70,8 @@ namespace Gui
                 button->setCaption(item.mName);
                 button->getSubWidgetText()->setWordWrap(true);
                 button->getSubWidgetText()->setTextAlign(MyGUI::Align::Left);
+                if (mFontScale != 1.0f)
+                    button->setFontHeight(static_cast<int>(button->getFontHeight() * mFontScale));
                 button->eventMouseWheel += MyGUI::newDelegate(this, &MWList::onMouseWheelMoved);
                 button->eventMouseButtonClick += MyGUI::newDelegate(this, &MWList::onItemSelected);
                 button->setNeedKeyFocus(true);

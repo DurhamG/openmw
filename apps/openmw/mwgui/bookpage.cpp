@@ -14,12 +14,14 @@
 
 namespace
 {
-    std::optional<MyGUI::GlyphInfo> getGlyphInfo(MyGUI::IFont* font, MyGUI::Char ch)
+    std::optional<MyGUI::GlyphInfo> getGlyphInfo(MyGUI::IFont* font, MyGUI::Char ch, int fontSize = 0)
     {
         const MyGUI::GlyphInfo* gi = font->getGlyphInfo(ch);
         if (!gi)
             return {};
-        const float scale = font->getDefaultHeight() / static_cast<float>(Settings::gui().mFontSize);
+        if (fontSize <= 0)
+            fontSize = Settings::gui().mFontSize;
+        const float scale = font->getDefaultHeight() / static_cast<float>(fontSize);
         MyGUI::GlyphInfo info = *gi;
         info.bearingX /= scale;
         info.bearingY /= scale;
@@ -171,6 +173,8 @@ namespace MWGui
         // Holds "top" and "bottom" vertical coordinates in the source text.
         // A page is basically a "window" into a portion of the source text, similar to a ScrollView.
         typedef std::pair<int, int> Page;
+
+        int mFontSize = 0;
 
         std::vector<Page> mPages;
         Sections mSections;
@@ -336,9 +340,12 @@ namespace MWGui
         TypesetBookImpl::Content const* mCurrentContent;
         Alignment mCurrentAlignment;
 
-        Typesetter(int width, int height)
+        int mFontSize;
+
+        Typesetter(int width, int height, int fontSize = 0)
             : mPageWidth(width)
             , mPageHeight(height)
+            , mFontSize(fontSize > 0 ? fontSize : Settings::gui().mFontSize)
             , mSection(nullptr)
             , mLine(nullptr)
             , mRun(nullptr)
@@ -346,6 +353,7 @@ namespace MWGui
             , mCurrentAlignment(AlignLeft)
         {
             mBook = std::make_shared<TypesetBookImpl>();
+            mBook->mFontSize = mFontSize;
         }
 
         virtual ~Typesetter() = default;
@@ -598,7 +606,7 @@ namespace MWGui
 
                 while (!stream.eof() && !ucsLineBreak(stream.peek()) && ucsBreakingSpace(stream.peek()))
                 {
-                    std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek());
+                    std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek(), mFontSize);
                     if (info)
                         spaceWidth += static_cast<int>(info->advance + info->bearingX);
                     stream.consume();
@@ -608,7 +616,7 @@ namespace MWGui
 
                 while (!stream.eof() && !ucsLineBreak(stream.peek()) && !ucsBreakingSpace(stream.peek()))
                 {
-                    std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek());
+                    std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(style->mFont, stream.peek(), mFontSize);
                     if (info)
                         wordWidth += static_cast<int>(info->advance + info->bearingX);
                     stream.consume();
@@ -631,7 +639,7 @@ namespace MWGui
             if (mPartialWhitespace.empty() && mPartialWord.empty())
                 return;
 
-            const int fontHeight = Settings::gui().mFontSize;
+            const int fontHeight = mFontSize;
             int spaceWidth = 0;
             int wordWidth = 0;
 
@@ -733,9 +741,9 @@ namespace MWGui
         }
     };
 
-    std::shared_ptr<BookTypesetter> BookTypesetter::create(int pageWidth, int pageHeight)
+    std::shared_ptr<BookTypesetter> BookTypesetter::create(int pageWidth, int pageHeight, int fontSize)
     {
-        return std::make_shared<TypesetBookImpl::Typesetter>(pageWidth, pageHeight);
+        return std::make_shared<TypesetBookImpl::Typesetter>(pageWidth, pageHeight, fontSize);
     }
 
     namespace
@@ -825,6 +833,7 @@ namespace MWGui
             float mZ;
             uint32_t mC;
             MyGUI::IFont* mFont;
+            int mFontSize;
             MyGUI::FloatPoint mOrigin;
             MyGUI::FloatPoint mCursor;
             MyGUI::Vertex* mVertices;
@@ -832,10 +841,11 @@ namespace MWGui
             MyGUI::VertexColourType mVertexColourType;
 
             explicit GlyphStream(MyGUI::IFont* font, float left, float top, float z, MyGUI::Vertex* vertices,
-                RenderXform const& renderXform)
+                RenderXform const& renderXform, int fontSize = 0)
                 : mZ(z)
                 , mC(0)
                 , mFont(font)
+                , mFontSize(fontSize)
                 , mOrigin(left, top)
                 , mVertices(vertices)
                 , mRenderXform(renderXform)
@@ -859,7 +869,7 @@ namespace MWGui
 
             void emitGlyph(MyGUI::Char ch)
             {
-                std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch);
+                std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch, mFontSize);
 
                 if (!info)
                     return;
@@ -881,7 +891,7 @@ namespace MWGui
 
             void emitSpace(MyGUI::Char ch)
             {
-                std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch);
+                std::optional<MyGUI::GlyphInfo> info = getGlyphInfo(mFont, ch, mFontSize);
 
                 if (info)
                     mCursor.left += static_cast<int>(info->bearingX + info->advance);
@@ -1306,8 +1316,10 @@ namespace MWGui
 
             float z = SceneUtil::AutoDepth::isReversed() ? 1.f : -1.f;
 
+            int fontSize = mBook ? mBook->mFontSize : 0;
             GlyphStream glyphStream(textFormat.mFont, static_cast<float>(mCoord.left),
-                static_cast<float>(mCoord.top - mViewTop), z /*mNode->getNodeDepth()*/, vertices, renderXform);
+                static_cast<float>(mCoord.top - mViewTop), z /*mNode->getNodeDepth()*/, vertices, renderXform,
+                fontSize);
 
             const int visitTop = std::max(mViewTop, mViewTop + static_cast<int>(renderXform.clipTop));
             const int visitBottom = std::min(mViewBottom, mViewTop + static_cast<int>(renderXform.clipBottom));

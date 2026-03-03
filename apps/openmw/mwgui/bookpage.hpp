@@ -57,7 +57,8 @@ namespace MWGui
         struct Style;
 
         /// A factory function for creating the default implementation of a book typesetter
-        static std::shared_ptr<BookTypesetter> create(int pageWidth, int pageHeight);
+        /// fontSize overrides Settings::gui().mFontSize for this typesetter (0 = use default)
+        static std::shared_ptr<BookTypesetter> create(int pageWidth, int pageHeight, int fontSize = 0);
 
         /// Create a simple text style consisting of a font and a text color.
         virtual Style* createStyle(const std::string& fontName, const MyGUI::Colour& colour, bool useBookFont = true)

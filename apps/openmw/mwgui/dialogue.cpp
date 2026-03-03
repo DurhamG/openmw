@@ -333,6 +333,8 @@ namespace MWGui
 
         // Topics list
         getWidget(mTopicsList, "TopicsList");
+        if (Settings::gui().mControllerMenus)
+            mTopicsList->setFontScale(1.5f);
         mTopicsList->eventItemSelected += MyGUI::newDelegate(this, &DialogueWindow::onSelectListItem);
 
         getWidget(mGoodbyeButton, "ByeButton");
@@ -657,8 +659,9 @@ namespace MWGui
             mScrollBar->setVisible(true);
         }
 
+        int fontSize = Settings::gui().mControllerMenus ? static_cast<int>(Settings::gui().mFontSize * 1.5f) : 0;
         std::shared_ptr<BookTypesetter> typesetter
-            = BookTypesetter::create(mHistory->getWidth(), std::numeric_limits<int>::max());
+            = BookTypesetter::create(mHistory->getWidth(), std::numeric_limits<int>::max(), fontSize);
 
         for (const auto& text : mHistoryContents)
             text->write(typesetter, mKeywordSearch, mTopicLinks);

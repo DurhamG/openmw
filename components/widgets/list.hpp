@@ -49,6 +49,7 @@ namespace Gui
 
         void scrollToTop();
         void setViewOffset(int offset);
+        void setFontScale(float scale) { mFontScale = scale; }
 
         void setPropertyOverride(std::string_view key, std::string_view value) override;
 
@@ -79,6 +80,7 @@ namespace Gui
         std::vector<ListItemData> mItems;
 
         int mItemHeight; // height of all items
+        float mFontScale = 1.0f;
     };
 }
 
