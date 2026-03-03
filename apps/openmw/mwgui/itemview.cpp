@@ -19,6 +19,11 @@
 namespace MWGui
 {
 
+    static int getIconSize()
+    {
+        return Settings::gui().mControllerMenus ? 64 : 42;
+    }
+
     ItemView::ItemView()
         : mScrollView(nullptr)
         , mControllerActiveWindow(false)
@@ -53,13 +58,15 @@ namespace MWGui
         MyGUI::Widget* dragArea = mScrollView->getChildAt(0);
         int maxHeight = mScrollView->getHeight();
 
-        mRows = std::max(maxHeight / 42, 1);
+        const int iconSize = getIconSize();
+        mRows = std::max(maxHeight / iconSize, 1);
         mItemCount = static_cast<int>(dragArea->getChildCount());
-        bool showScrollbar = static_cast<int>(std::ceil(mItemCount / float(mRows))) > mScrollView->getWidth() / 42;
+        bool showScrollbar
+            = static_cast<int>(std::ceil(mItemCount / float(mRows))) > mScrollView->getWidth() / iconSize;
         if (showScrollbar)
         {
             maxHeight -= 18;
-            mRows = std::max(maxHeight / 42, 1);
+            mRows = std::max(maxHeight / iconSize, 1);
         }
 
         for (int i = 0; i < mItemCount; ++i)
@@ -68,15 +75,15 @@ namespace MWGui
 
             w->setPosition(x, y);
 
-            y += 42;
+            y += iconSize;
 
-            if (y > maxHeight - 42 && i < mItemCount - 1)
+            if (y > maxHeight - iconSize && i < mItemCount - 1)
             {
-                x += 42;
+                x += iconSize;
                 y = 0;
             }
         }
-        x += 42;
+        x += iconSize;
 
         MyGUI::IntSize size = MyGUI::IntSize(std::max(mScrollView->getSize().width, x), mScrollView->getSize().height);
 
@@ -119,8 +126,9 @@ namespace MWGui
         {
             const ItemStack& item = mModel->getItem(i);
 
+            const int iconSize = getIconSize();
             ItemWidget* itemWidget = dragArea->createWidget<ItemWidget>(
-                "MW_ItemIcon", MyGUI::IntCoord(0, 0, 42, 42), MyGUI::Align::Default);
+                "MW_ItemIcon", MyGUI::IntCoord(0, 0, iconSize, iconSize), MyGUI::Align::Default);
             itemWidget->setUserString("ToolTipType", "ItemModelIndex");
             itemWidget->setUserData(std::make_pair(i, mModel.get()));
             ItemWidget::ItemState state = ItemWidget::None;
@@ -290,7 +298,7 @@ namespace MWGui
                 if (column <= 3)
                     mScrollView->setViewOffset(MyGUI::IntPoint(0, 0));
                 else
-                    mScrollView->setViewOffset(MyGUI::IntPoint(-42 * (column - 3), 0));
+                    mScrollView->setViewOffset(MyGUI::IntPoint(-getIconSize() * (column - 3), 0));
 
                 MWBase::WindowManager* winMgr = MWBase::Environment::get().getWindowManager();
                 winMgr->restoreControllerTooltips();

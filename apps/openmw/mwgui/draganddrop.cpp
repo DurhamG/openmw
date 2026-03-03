@@ -3,6 +3,8 @@
 #include <MyGUI_ControllerManager.h>
 #include <MyGUI_Gui.h>
 
+#include <components/settings/values.hpp>
+
 #include "../mwbase/environment.hpp"
 #include "../mwbase/windowmanager.hpp"
 
@@ -74,8 +76,9 @@ namespace MWGui
             mSourceSortModel->addDragItem(mItem.mBase, count);
         }
 
+        const int iconSize = Settings::gui().mControllerMenus ? 64 : 42;
         mDraggedWidget = MyGUI::Gui::getInstance().createWidget<ItemWidget>(
-            "MW_ItemIcon", 0, 0, 42, 42, MyGUI::Align::Default, "DragAndDrop");
+            "MW_ItemIcon", 0, 0, iconSize, iconSize, MyGUI::Align::Default, "DragAndDrop");
 
         Controllers::ControllerFollowMouse* controller
             = MyGUI::ControllerManager::getInstance()
