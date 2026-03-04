@@ -296,7 +296,6 @@ set(USED_OSG_COMPONENTS
     )
 set(USED_OSG_PLUGINS
     osgdb_bmp
-    osgdb_dae
     osgdb_dds
     osgdb_freetype
     osgdb_jpeg
@@ -304,6 +303,11 @@ set(USED_OSG_PLUGINS
     osgdb_png
     osgdb_serializers_osg
     osgdb_tga)
+
+find_package(collada_dom 2.5 QUIET)
+if(collada_dom_FOUND)
+    list(APPEND USED_OSG_PLUGINS osgdb_dae)
+endif()
 
 if(NOT COLLADA_DOM_VERSION_MAJOR)
     set(COLLADA_DOM_VERSION_MAJOR 2)
